@@ -1,13 +1,111 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+a {
+  text-decoration: none;
+  color: #9dad7f;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+body {
+  background-color: #f7f7e8;
+  color: #557174;
+  font-family: "Annie Use Your Telescope", sans-serif;
+  font-size: 1rem;
+  margin: 0;
+  text-align: center;
 }
+
+footer {
+  padding-bottom: 1rem;
+}
+
+header {
+  background-color: #557174;
+  color: #f7f7e8;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  padding-top: 1rem;
+}
+
+p {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.game-board {
+  margin-bottom: 1rem;
+}
+
+.board-row:after {
+  clear: both;
+  content: "";
+  display: table;
+}
+
+.blue {
+  color: #5eaaa8;
+}
+
+.kbd-navigation .square:focus {
+  background: #9dad7f;
+}
+
+.meeple {
+  height: 2rem;
+  width: 2rem;
+}
+
+.orange {
+  color: #f87829;
+}
+
+.social-icon {
+  height: 1.5rem;
+  padding: 0 4px;
+  width: 1.5rem;
+}
+
+.square {
+  background-color: #f7f7e8;
+  border: none;
+  padding: 1px;
+  height: 2.5rem;
+  width: 2.5rem;
+}
+
+.square:focus {
+  outline: none;
+}
+
+.square.win {
+  background: #9dad7f;
+  border: 1px solid #557174;
+}
+
+.status {
+  color: #557174;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.subtitle {
+  font-family: "Cabin Sketch", serif;
+  font-size: 2rem;
+  font-weight: 400;
+}
+
+.tie {
+  color: #bc5148;
+}
+
+.title {
+  font-family: "Cabin Sketch", serif;
+  font-size: 3.5rem;
+  font-weight: 700;
+}
+
+.title.blue {
+  color: #a3d2ca;
+}
+
+.title.orange {
+  color: #fa8f4d;
+}
+
