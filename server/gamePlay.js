@@ -1,5 +1,5 @@
 export function checkWinCondition(gameGrid, rowIndex, columnIndex) {
-  //Check if the move that was just played wins the game
+  // Check if the move that was just played wins the game
   let winSequenceLength = 4;
   let directions = [
     { head: "W", tail: "E" }, // Horizontal
@@ -11,7 +11,12 @@ export function checkWinCondition(gameGrid, rowIndex, columnIndex) {
   // Concatonate the head and tail sequences with the current block.
   for (let direction of directions) {
     // Order doesn't matter here
-    let sequence = buildSequence(gameGrid, rowIndex, columnIndex, direction.head).concat(
+    let sequence = buildSequence(
+      gameGrid,
+      rowIndex,
+      columnIndex,
+      direction.head
+    ).concat(
       [[rowIndex, columnIndex]],
       buildSequence(gameGrid, rowIndex, columnIndex, direction.tail)
     );
@@ -19,41 +24,41 @@ export function checkWinCondition(gameGrid, rowIndex, columnIndex) {
     if (sequence.length >= winSequenceLength)
       return { isWin: true, sequence: sequence };
   }
-  return { isWin: false, sequence: null };
+
+  return { isWin: false };
 }
 
-export function prepareNextMove(gameGrid, rowIndex, columnIndex, blueIsNext) {
-    let grid = gameGrid;
+export function prepareNextMove(gameGrid, rowIndex, columnIndex) {
+  let grid = gameGrid;
 
-    // Works with both odd and even number of columns, in case we want a bigger grid
-    let mid = Math.floor(grid.length / 2);
+  // Works with both odd and even number of columns, in case we want a bigger grid
+  let mid = Math.floor(grid.length / 2);
 
-    // Follow Connect Four rules with mid as the ingress point, 
-    if (columnIndex < mid && grid[rowIndex][columnIndex + 1] === "locked") {
-      // If the square to the right is locked, make it available
-      grid[rowIndex][columnIndex + 1] = "open";
-    } else if (
-      columnIndex > mid &&
-      grid[rowIndex][columnIndex - 1] === "locked"
-    ) {
-      // If the square to the left is locked, make it available
-      grid[rowIndex][columnIndex - 1] = "open";
-    }
-  
-    //Check for tie condition (no more open squares)
-    let isTie = !grid.some((row) => row.includes("open"));
-    if (isTie) {
-      return { isDone: true, winner: "tie" };
-    } else {
-      return { grid: grid, blueIsNext: !blueIsNext };
-    }
+  // Follow Connect Four rules with mid as the ingress point,
+  if (columnIndex < mid && grid[rowIndex][columnIndex + 1] === "locked") {
+    // If the square to the right is locked, make it available
+    grid[rowIndex][columnIndex + 1] = "open";
+  } else if (
+    columnIndex > mid &&
+    grid[rowIndex][columnIndex - 1] === "locked"
+  ) {
+    // If the square to the left is locked, make it available
+    grid[rowIndex][columnIndex - 1] = "open";
   }
+
+  // Check for a tie
+  let isTie = !grid.some((row) => row.includes("open"));
+  if (isTie) {
+    return { isTie };
+  }
+
+  return { grid };
+}
 
 // Builds an array of adjacent squares that have the same value
 function buildSequence(grid, rowIndex, columnIndex, direction, sequence = []) {
   let seq = sequence;
   let currentValue = grid[rowIndex][columnIndex];
-  console.table(currentValue, direction);
   let nextValue;
   let nextRow;
   let nextColumn;

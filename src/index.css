@@ -1,11 +1,17 @@
 a {
   text-decoration: none;
-  color: #9dad7f;
+  color: #557174;
+}
+html,
+body {
+  height: 100%;
 }
 
 body {
   background-color: #f7f7e8;
   color: #557174;
+  display: flex;
+  flex-direction: column;
   font-family: "Annie Use Your Telescope", sans-serif;
   font-size: 1rem;
   margin: 0;
@@ -13,13 +19,16 @@ body {
 }
 
 footer {
-  padding-bottom: 1rem;
+  background-color: #9dad7f;
+  color: #f7f7e8;
+  flex-shrink: 0;
+  padding: 1rem;
 }
 
 header {
   background-color: #557174;
   color: #f7f7e8;
-  margin-bottom: 1rem;
+  margin: 0;
   padding-bottom: 1rem;
   padding-top: 1rem;
 }
@@ -27,10 +36,6 @@ header {
 p {
   margin-top: 0;
   margin-bottom: 0;
-}
-
-.game-board {
-  margin-bottom: 1rem;
 }
 
 .board-row:after {
@@ -43,6 +48,18 @@ p {
   color: #5eaaa8;
 }
 
+.content {
+  flex: 1 0 auto;
+  margin: 5rem;
+}
+
+.game-board {
+  background: #c7cfb7;
+  border: 1px solid #557174;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
 .kbd-navigation .square:focus {
   background: #9dad7f;
 }
@@ -50,6 +67,41 @@ p {
 .meeple {
   height: 2rem;
   width: 2rem;
+}
+
+.menu {
+  background: #c7cfb7;
+  border: 1px solid #557174;
+  border-radius: 10px;
+  margin: auto;
+  padding: 2rem;
+  width:70%;
+}
+
+.menu-button {
+  background: #557174;
+  border: 1px solid #557174;
+  border-radius: 5px;
+  color: #f7f7e8;
+  font-family: "Cabin Sketch", serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  min-width: 6rem;
+  padding: .5rem;
+}
+
+.menu-input {
+  background: white;
+  border: 1px solid #557174;
+  border-radius: 5px;
+  color: #557174;
+  font-family: "Cabin Sketch", serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  padding: 0.5rem;
+  margin: .5rem;
+  text-align: center;
+  width: 50%;
 }
 
 .orange {
@@ -63,7 +115,7 @@ p {
 }
 
 .square {
-  background-color: #f7f7e8;
+  background-color: #c7cfb7;
   border: none;
   padding: 1px;
   height: 2.5rem;
@@ -108,4 +160,3 @@ p {
 .title.orange {
   color: #fa8f4d;
 }
-
