@@ -3,28 +3,33 @@ import "../index.css";
 
 const gridWidth = 7;
 
+const cleanGrid = () => {
+  // Start with a 7x7 grid full 'o trees (locked) and grass (open)
+  let grid = [];
+  for (let rowIndex = 0; rowIndex < gridWidth; rowIndex++) {
+    let row = [];
+    for (let columnIndex = 0; columnIndex < gridWidth; columnIndex++) {
+      if (columnIndex === 0 || columnIndex === gridWidth - 1) {
+        row.push("open");
+      } else row.push("locked");
+    }
+    grid.push(row);
+  }
+  return grid;
+};
+
 export default class Board extends React.Component {
   constructor(props) {
     super(props);
 
-    // Start with a 7x7 grid full 'o trees (locked) and grass (open)
-    let grid = [];
-    for (let rowIndex = 0; rowIndex < gridWidth; rowIndex++) {
-      let row = [];
-      for (let columnIndex = 0; columnIndex < gridWidth; columnIndex++) {
-        if (columnIndex === 0 || columnIndex === gridWidth - 1) {
-          row.push("open");
-        } else row.push("locked");
-      }
-      grid.push(row);
-    }
-    console.log("My colour: " + props.colour);
+    let grid = cleanGrid();
     this.state = {
       grid: grid,
       isDone: false,
       blueIsNext: true,
       winner: null,
-      winSequence: null,
+      sequence: null,
+      message: null,
     };
   }
 
@@ -36,8 +41,30 @@ export default class Board extends React.Component {
     });
 
     socket.on("turn", (data) => {
-      console.log(data);
-      this.setState({grid : data.grid, blueIsNext: !this.state.blueIsNext})
+      this.setState({ grid: data.grid, blueIsNext: !this.state.blueIsNext });
+    });
+
+    socket.on("disconnected", (data) => {
+      // Handle forfeit
+      if (!this.state.isDone) {
+        this.setState({
+          isDone: true,
+          winner: data.winner,
+          message: "Your opponent saw something shiny and wandered off.",
+        });
+      }
+    });
+
+    socket.on("resetBoard", () => {
+      let grid = cleanGrid();
+      this.setState({
+        grid: grid,
+        isDone: false,
+        blueIsNext: true,
+        winner: null,
+        sequence: null,
+        message: null,
+      })
     });
   }
 
@@ -57,8 +84,14 @@ export default class Board extends React.Component {
   }
 
   renderSquare(rowIndex, columnIndex) {
-    // TODO Add class name according to win sequence
-    let className = "square";
+    let className =
+      this.state.sequence !== null &&
+      this.state.sequence.some(
+        (position) => position[0] === rowIndex && position[1] === columnIndex
+      )
+        ? "square win"
+        : "square";
+
     return (
       <Square
         position={"r" + rowIndex + "c" + columnIndex}
@@ -71,13 +104,32 @@ export default class Board extends React.Component {
 
   render() {
     let currentPlayer = this.state.blueIsNext ? "blue" : "orange";
-    let win = "";
-    let turn = "";
+    let top = "";
+    let bottom = "";
+    let playAgain = null;
 
     if (this.state.isDone) {
-      win = <WinLabel winner={this.state.winner} />;
+      let socket = this.props.socket;
+      let gameId = this.props.gameId;
+
+      top = <WinLabel winner={this.state.winner} colour={this.props.colour} />;
+      bottom = this.state.message || <SadLabel />;
+      playAgain = (
+        <button
+          className="menu-button"
+          onClick={() => {
+            socket.emit("playAgain", { gameId });
+          }}
+        >
+          Another?
+        </button>
+      );
     } else {
-      turn = <TurnLabel currentPlayer={currentPlayer} />;
+      top = <GameLabel colour={this.props.colour} />;
+      bottom = (
+        <TurnLabel currentPlayer={currentPlayer} colour={this.props.colour} />
+      );
+      playAgain = null;
     }
 
     let grid = this.state.grid.map((row) => row.slice());
@@ -91,9 +143,10 @@ export default class Board extends React.Component {
 
     return (
       <div>
-        <div className="status">{win}</div>
+        <div className="status">{top}</div>
         <div className="game-board">{gameBoard}</div>
-        <div className="status">{turn}</div>
+        <div className="status">{bottom}</div>
+        <div className="status">{playAgain}</div>
       </div>
     );
   }
@@ -113,41 +166,87 @@ function Square(props) {
 }
 
 function TurnLabel(props) {
-  let currentPlayer = props.currentPlayer + " yack";
+  let currentPlayer =
+    props.currentPlayer === props.colour
+      ? " your "
+      : props.currentPlayer + " yack's ";
   return (
     <p>
       It's
       <span className={"subtitle " + props.currentPlayer}>
         {" " + currentPlayer}
       </span>
-      's turn.
+      turn.
     </p>
   );
 }
 
-function WinLabel(props) {
-  let winner = "";
-
-  switch (props.winner) {
-    case "blue":
-      winner = " Blue Yak ";
-      break;
-    case "orange":
-      winner = " Orange Yak ";
-      break;
-
-    case "tie":
-      winner = " Capitalism ";
-      break;
-
-    default:
-      break;
-  }
+function GameLabel(props) {
+  let indefiniteArticle = props.colour === "orange" ? " an " : " a ";
   return (
-    <p>
-      Yay.
-      <span className={"subtitle " + props.winner}>{winner}</span>
-      wins.
-    </p>
+    <React.Fragment>
+      <p>It's a beautiful day in the meadow</p>
+      <p>
+        and you are {indefiniteArticle}
+        <span className={"subtitle " + props.colour}>{props.colour + " "}</span>
+        yak.
+      </p>
+    </React.Fragment>
   );
+}
+
+function SadLabel() {
+  const sadness = [
+    "Was it worth it? Was any of it really worth it?",
+    "But at what cost?",
+    "You felled the trees that bore the fruit of your long labour.",
+    "The land may never recover from your greed.",
+    "We all lose, if you think about it.",
+    "Did you learn anything? Anything at all?",
+    "All that ecological upheaval, for nothing.",
+    "Take a moment to reflect on the futility of it all.",
+    "And so the dens and burrows stood empty in your wake.",
+  ];
+
+  let randomSad = sadness[Math.floor(Math.random() * sadness.length)];
+  return <p>{randomSad}</p>;
+}
+
+function WinLabel(props) {
+  let label = "";
+  if (props.colour === props.winner) {
+    label = (
+      <p>
+        Yay.
+        <span className={"subtitle " + props.winner}>{" You "}</span>
+        win.
+      </p>
+    );
+  } else {
+    let winner = "";
+
+    switch (props.winner) {
+      case "blue":
+        winner = " Blue Yak ";
+        break;
+      case "orange":
+        winner = " Orange Yak ";
+        break;
+
+      case "tie":
+        winner = " Capitalism ";
+        break;
+
+      default:
+        break;
+    }
+    label = (
+      <p>
+        Boo.
+        <span className={"subtitle " + props.winner}>{winner}</span>
+        wins.
+      </p>
+    );
+  }
+  return label;
 }

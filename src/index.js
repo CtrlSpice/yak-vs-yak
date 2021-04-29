@@ -16,7 +16,6 @@ class Game extends React.Component {
       gameId: null,
       colour: null,
       isActive: false,
-      isDone: false,
       error: null,
     };
   }
@@ -40,15 +39,20 @@ class Game extends React.Component {
       let colour = data.orange === this.state.playerId ? "orange" : "blue";
       let gameId = data.gameId;
       let isActive = true;
-      let error = null;
-      
-      this.setState({ gameId, colour, isActive, error});
+
+      this.setState({ gameId, colour, isActive });
     });
 
-    socket.on("error", (data) => {
-      // TODO: handle your errors.
-      this.setState({ error: data.message });
+    socket.on("resetGame", () => {
+      this.setState({
+        gameId: null,
+        colour: null,
+        isActive: false,
+        error: null,
+      });
     });
+
+    socket.on("error", (error) => this.setState({ error }));
   }
 
   renderStartMenu() {
@@ -57,6 +61,7 @@ class Game extends React.Component {
         gameId={this.state.gameId}
         playerId={this.state.playerId}
         socket={this.state.socket}
+        error={this.state.error}
       />
     );
   }
@@ -65,7 +70,11 @@ class Game extends React.Component {
     if (this.state.isActive) {
       return (
         <div className="game">
-          <Board colour={this.state.colour} socket={this.state.socket}/>
+          <Board
+            gameId={this.state.gameId}
+            colour={this.state.colour}
+            socket={this.state.socket}
+          />
         </div>
       );
     } else {

@@ -19,9 +19,7 @@ const games = [];
 const lobbies = [];
 
 io.on("connect", (socket) => {
-  // Generate a player id
-  // TODO: Fix this when you get the DB set up
-  let playerId = "yak" + socket.id.slice(7, 12);
+  let playerId = socket.id;
   let gameId;
   let grid;
 
@@ -38,16 +36,17 @@ io.on("connect", (socket) => {
   });
 
   socket.on("join", (lobbyData) => {
+    console.log(lobbyData);
     // Find the correct lobby in lobbies
     let lobby = lobbies.find((lobby) => {
       return lobby.gameId === lobbyData.gameId;
     });
 
     if (lobby) {
-      gameId = lobbyData.gameId;
+      gameId = lobby.gameId;
       let orange =
-        Math.floor(Math.random() * 2) === 0 ? lobbyData.playerId : playerId;
-      let blue = orange === playerId ? lobbyData.playerId : playerId;
+        Math.floor(Math.random() * 2) === 0 ? lobby.playerId : playerId;
+      let blue = orange === playerId ? lobby.playerId : playerId;
       let game = { gameId, orange, blue };
 
       // Remove instance from lobbies and add it to games
@@ -55,10 +54,13 @@ io.on("connect", (socket) => {
       games.push(game);
 
       socket.join(gameId);
+      socket.emit("error", null);
       io.to(gameId).emit("joined", game);
     } else {
       socket.emit("error", {
-        message: `Room ${gameId} doesn't exist. Please try again.`,
+        source: "StartMenu",
+        on: "join",
+        message: `Game ${lobbyData.gameId} doesn't exist. We are deeply sorry.`,
       });
     }
   });
@@ -70,13 +72,12 @@ io.on("connect", (socket) => {
       moveData.columnIndex
     );
 
-    console.log(winCondition);
     // Check if someone won
     if (winCondition.isWin) {
       io.to(gameId).emit("win", {
         grid: moveData.grid,
         isDone: true,
-        winner: moveData.currentValue,
+        winner: moveData.currentYak,
         sequence: winCondition.sequence,
       });
     } else {
@@ -86,7 +87,7 @@ io.on("connect", (socket) => {
         moveData.rowIndex,
         moveData.columnIndex
       );
-      console.log(nextMove);
+
       // Check if there's been a tie
       if (nextMove.isTie) {
         io.to(gameId).emit("win", {
@@ -100,6 +101,58 @@ io.on("connect", (socket) => {
         grid = nextMove.grid;
         io.to(gameId).emit("turn", { grid });
       }
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log(playerId + " disconnected.");
+    // If a player disconnects from a lobby, delete the lobby
+    let activeLobby = games.find((lobby) => lobby.playerId === playerId);
+    if (activeLobby) {
+      let lobbyIndex = lobbies.indexOf(activeLobby);
+      lobbies.splice(lobbyIndex, 1);
+    }
+
+    // If a player disconnects from a game, let the other player win
+    let activeGame = games.find(
+      (game) => game.orange === playerId || game.blue === playerId
+    );
+    if (activeGame) {
+      let winner = playerId === activeGame.orange ? "blue" : "orange";
+      let gameIndex = games.indexOf(activeGame);
+      games.splice(gameIndex, 1);
+
+      io.to(gameId).emit("disconnected", {
+        winner,
+      });
+    }
+  });
+
+  socket.on("playAgain", (gameData) => {
+    // Swap the player colours to keep things interesting
+    let prevGame = games.find((game) => game.gameId === gameData.gameId);
+    if (prevGame) {
+      console.log(prevGame);
+      let orange = prevGame.blue;
+      let blue = prevGame.orange;
+
+      // Remove the previous game from games
+      let prevIndex = games.indexOf(prevGame);
+      games.splice(prevIndex, 1);
+
+      // Create a new game
+      gameId = uuidv4().slice(0, 7);
+      io.sockets.sockets.get(orange).join(gameId);
+      io.sockets.sockets.get(blue).join(gameId);
+
+      //Add new game to games array
+      let game = { gameId, blue, orange };
+      games.push(game);
+
+      io.to(gameId).emit("resetBoard");
+      io.to(gameId).emit("joined", game);
+    } else {
+      socket.emit("resetGame");
     }
   });
 });

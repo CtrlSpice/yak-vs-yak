@@ -38,26 +38,27 @@ p {
   margin-bottom: 0;
 }
 
-.board-row:after {
-  clear: both;
-  content: "";
-  display: table;
-}
-
 .blue {
   color: #5eaaa8;
 }
 
 .content {
   flex: 1 0 auto;
-  margin: 5rem;
+}
+
+.error {
+  color: #bc5148;
+  text-align: start;
+  margin: 0rem 2.5rem
 }
 
 .game-board {
   background: #c7cfb7;
   border: 1px solid #557174;
   border-radius: 10px;
+  margin: auto;
   padding: 1rem;
+  width: fit-content;
 }
 
 .kbd-navigation .square:focus {
@@ -73,9 +74,9 @@ p {
   background: #c7cfb7;
   border: 1px solid #557174;
   border-radius: 10px;
-  margin: auto;
-  padding: 2rem;
-  width:70%;
+  margin: 3rem auto;
+  padding: 1rem;
+  width: fit-content;
 }
 
 .menu-button {
@@ -129,12 +130,13 @@ p {
 .square.win {
   background: #9dad7f;
   border: 1px solid #557174;
+  border-radius: 5px;
 }
 
 .status {
   color: #557174;
   font-size: 1.5rem;
-  margin-bottom: 1rem;
+  margin: 1rem;
 }
 
 .subtitle {
