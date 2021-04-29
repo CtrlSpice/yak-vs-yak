@@ -185,9 +185,7 @@ function GameLabel(props) {
   let indefiniteArticle = props.colour === "orange" ? " an " : " a ";
   return (
     <React.Fragment>
-      <p>It's a beautiful day in the meadow</p>
-      <p>
-        and you are {indefiniteArticle}
+      <p>You are {indefiniteArticle}
         <span className={"subtitle " + props.colour}>{props.colour + " "}</span>
         yak.
       </p>

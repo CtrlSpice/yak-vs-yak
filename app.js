@@ -7,8 +7,15 @@ import { checkWinCondition, prepareNextMove } from "./server/gamePlay.js";
 const port = process.env.PORT | 4000;
 const app = express();
 
+app.use(express.static("build"));
+app.use(express.static("public"));
+
 const server = app.listen(port, () => {
   console.log(`Server is practicing active listening on port ${port}`);
+});
+
+app.get("*", function (_req, res) {
+  res.sendFile("./build/index.html");
 });
 
 // Socket
@@ -152,6 +159,7 @@ io.on("connect", (socket) => {
       io.to(gameId).emit("resetBoard");
       io.to(gameId).emit("joined", game);
     } else {
+      // If the other player left, go back to the menu screen
       socket.emit("resetGame");
     }
   });
