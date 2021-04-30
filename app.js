@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { checkWinCondition, prepareNextMove } from "./server/gamePlay.js";
 
 // App
-const port = process.env.PORT | 4000;
+const port = process.env.PORT || 4000;
 const app = express();
 
 app.use(express.static("build"));
@@ -14,7 +14,7 @@ const server = app.listen(port, () => {
   console.log(`Server is practicing active listening on port ${port}`);
 });
 
-app.get("*", function (_req, res) {
+app.get("/*", function (_req, res) {
   res.sendFile("./build/index.html");
 });
 
