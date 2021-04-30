@@ -4,9 +4,6 @@ import StartMenu from "./components/startMenu.js";
 import Board from "./components/board.js";
 import socketClient from "socket.io-client";
 
-const hostname = "yak-vs-yak.herokuapp.com"; //"localhost";
-const port = process.env.PORT | 4000;
-
 class Game extends React.Component {
   constructor(props) {
     super(props);
@@ -21,9 +18,8 @@ class Game extends React.Component {
   }
 
   componentDidMount() {
-    let server = `${hostname}:${port}`;
-    console.log(server);
-    let socket = socketClient(server);
+    let socket = socketClient();
+    console.log(socket);
     this.setState({ socket });
 
     socket.on("connected", (data) => {
