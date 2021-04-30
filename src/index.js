@@ -4,7 +4,7 @@ import StartMenu from "./components/startMenu.js";
 import Board from "./components/board.js";
 import socketClient from "socket.io-client";
 
-const hostname = "https://yak-vs-yak.herokuapp.com/";//"localhost";
+const hostname = "https://yak-vs-yak.herokuapp.com/"; //"localhost";
 const port = process.env.PORT | 4000;
 
 class Game extends React.Component {
