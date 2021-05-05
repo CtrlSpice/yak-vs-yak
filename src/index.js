@@ -10,7 +10,7 @@ class Game extends React.Component {
     this.state = {
       socket: null,
       playerId: null,
-      gameId: null,
+      roomId: null,
       colour: null,
       isActive: false,
       error: null,
@@ -28,21 +28,21 @@ class Game extends React.Component {
     });
 
     socket.on("created", (data) => {
-      let gameId = data.gameId;
-      this.setState({ gameId });
+      let roomId = data.roomId;
+      this.setState({ roomId });
     });
 
     socket.on("joined", (data) => {
       let colour = data.orange === this.state.playerId ? "orange" : "blue";
-      let gameId = data.gameId;
+      let roomId = data.roomId;
       let isActive = true;
 
-      this.setState({ gameId, colour, isActive });
+      this.setState({ roomId, colour, isActive });
     });
 
     socket.on("resetGame", () => {
       this.setState({
-        gameId: null,
+        roomId: null,
         colour: null,
         isActive: false,
         error: null,
@@ -55,7 +55,7 @@ class Game extends React.Component {
   renderStartMenu() {
     return (
       <StartMenu
-        gameId={this.state.gameId}
+        roomId={this.state.roomId}
         playerId={this.state.playerId}
         socket={this.state.socket}
         error={this.state.error}
@@ -68,7 +68,7 @@ class Game extends React.Component {
       return (
         <div className="game">
           <Board
-            gameId={this.state.gameId}
+            roomId={this.state.roomId}
             colour={this.state.colour}
             socket={this.state.socket}
           />

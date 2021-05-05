@@ -110,7 +110,7 @@ export default class Board extends React.Component {
 
     if (this.state.isDone) {
       let socket = this.props.socket;
-      let gameId = this.props.gameId;
+      let roomId = this.props.roomId;
 
       top = <WinLabel winner={this.state.winner} colour={this.props.colour} />;
       bottom = this.state.message || <SadLabel />;
@@ -118,7 +118,7 @@ export default class Board extends React.Component {
         <button
           className="menu-button"
           onClick={() => {
-            socket.emit("playAgain", { gameId });
+            socket.emit("playAgain", { roomId });
           }}
         >
           Another?

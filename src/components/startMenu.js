@@ -3,18 +3,18 @@ import { useFormik } from "formik";
 
 export default function StartMenu(props) {
   let playerId = props.playerId;
-  let gameId = props.gameId;
+  let roomId = props.roomId;
   let socket = props.socket;
   let error = props.error;
 
   return (
     <div className="menu">
-      <NewGameSection socket={socket} playerId={playerId} gameId={gameId} />
+      <NewGameSection socket={socket} playerId={playerId} roomId={roomId} />
       <p>-or-</p>
       <JoinGameForm
         socket={socket}
         playerId={playerId}
-        gameId={gameId}
+        roomId={roomId}
         error={error}
       />
     </div>
@@ -27,28 +27,28 @@ function JoinGameForm(props) {
   const socket = props.socket;
   const formik = useFormik({
     initialValues: {
-      gameId: "",
+      roomId: "",
     },
     validateOnChange: false,
     validateOnBlur: false,
     validate: (val) => {
       let errors = {};
 
-      if (!val.gameId) {
-        errors.gameId = "Game id is required to join a game.";
-      } else if (!/\b[a-zA-Z0-9]{7}\b/i.test(val.gameId)) {
-        errors.gameId =
+      if (!val.roomId) {
+        errors.roomId = "Game id is required to join a game.";
+      } else if (!/\b[a-zA-Z0-9]{7}\b/i.test(val.roomId)) {
+        errors.roomId =
           "Invalid format. Please check your game id and try again.";
-      } else if (val.gameId === props.gameId) {
-        errors.gameId =
+      } else if (val.roomId === props.roomId) {
+        errors.roomId =
           "Your game will start once your opponent joins.";
       } 
       return errors;
     },
 
     onSubmit: (val) => {
-      let gameId = val.gameId;
-      socket.emit("join", { gameId });
+      let roomId = val.roomId;
+      socket.emit("join", { roomId });
     },
   });
 
@@ -58,18 +58,18 @@ function JoinGameForm(props) {
       <form onSubmit={formik.handleSubmit}>
         <input
           id="game-id-input"
-          name="gameId"
+          name="roomId"
           type="text"
           className="menu-input"
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
-          value={formik.values.gameId}
+          value={formik.values.roomId}
         />
         <button className="menu-button" type="submit">
           Join
         </button>
-        {formik.touched.gameId && formik.errors.gameId ? (
-          <div className="error">{formik.errors.gameId}</div>
+        {formik.errors.roomId ? (
+          <div className="error">{formik.errors.roomId}</div>
         ) : (
           <div className="error">{serverError}</div>
         )}
@@ -80,10 +80,10 @@ function JoinGameForm(props) {
 
 function NewGameSection(props) {
   let playerId = props.playerId;
-  let gameId = props.gameId;
+  let roomId = props.roomId;
   let socket = props.socket;
 
-  if (gameId === null) {
+  if (roomId === null) {
     return (
       <button
         id="create-button"
@@ -94,7 +94,7 @@ function NewGameSection(props) {
       </button>
     );
   } else {
-    return <NewGameInfo gameId={gameId} />;
+    return <NewGameInfo roomId={roomId} />;
   }
 }
 
@@ -102,15 +102,15 @@ class NewGameInfo extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      gameId: props.gameId,
+      roomId: props.roomId,
       isCopied: false,
     };
-    this.gameIdText = React.createRef();
+    this.roomIdText = React.createRef();
     this.handleCopy = this.handleCopy.bind(this);
   }
 
   handleCopy() {
-    let txt = this.gameIdText.current;
+    let txt = this.roomIdText.current;
     txt.select();
 
     let isCopied = document.execCommand("copy");
@@ -120,12 +120,12 @@ class NewGameInfo extends React.Component {
   render() {
     return (
       <div className="create-section">
-        <p>Copy the game id and challenge your foe:</p>
+        <p>Copy the room id and challenge your foe:</p>
         <input
           id="new-game-id"
           className="menu-input"
-          ref={this.gameIdText}
-          value={this.state.gameId}
+          ref={this.roomIdText}
+          value={this.state.roomId}
           readOnly
         />
         <button className="menu-button" onClick={this.handleCopy}>

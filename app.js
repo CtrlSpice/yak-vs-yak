@@ -2,6 +2,7 @@ import { Server } from "socket.io";
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { checkWinCondition, prepareNextMove } from "./server/gamePlay.js";
+import { createGame, createMove, updateWinCondition, disconnect } from "./server/db.js";
 
 // App
 const port = process.env.PORT || 4000;
@@ -27,52 +28,63 @@ const lobbies = [];
 
 io.on("connect", (socket) => {
   let playerId = socket.id;
-  let gameId;
+  let roomId;
   let grid;
 
   socket.emit("connected", { playerId });
 
   socket.on("create", (playerData) => {
-    gameId = uuidv4().slice(0, 7);
+    roomId = uuidv4().slice(0, 7);
     let playerId = playerData.playerId;
-    let lobby = { gameId, playerId };
+    let lobby = { roomId, playerId };
 
     lobbies.push(lobby);
-    socket.join(gameId);
+    socket.join(roomId);
     socket.emit("created", lobby);
   });
 
-  socket.on("join", (lobbyData) => {
+  socket.on("join", async (lobbyData) => {
     console.log(lobbyData);
     // Find the correct lobby in lobbies
     let lobby = lobbies.find((lobby) => {
-      return lobby.gameId === lobbyData.gameId;
+      return lobby.roomId === lobbyData.roomId;
     });
 
     if (lobby) {
-      gameId = lobby.gameId;
+      roomId = lobby.roomId;
       let orange =
         Math.floor(Math.random() * 2) === 0 ? lobby.playerId : playerId;
       let blue = orange === playerId ? lobby.playerId : playerId;
-      let game = { gameId, orange, blue };
+      let game = { roomId, orange, blue };
+
+      // Add the game to the database
+      await createGame(roomId, blue, orange);
 
       // Remove instance from lobbies and add it to games
       lobbies.splice(lobbies.indexOf(lobby), 1);
       games.push(game);
 
-      socket.join(gameId);
+      socket.join(roomId);
       socket.emit("error", null);
-      io.to(gameId).emit("joined", game);
+      io.to(roomId).emit("joined", game);
     } else {
       socket.emit("error", {
         source: "StartMenu",
         on: "join",
-        message: `Game ${lobbyData.gameId} doesn't exist. We are deeply sorry.`,
+        message: `Game ${lobbyData.roomId} doesn't exist. We are deeply sorry.`,
       });
     }
   });
 
-  socket.on("move", (moveData) => {
+  socket.on("move", async (moveData) => {
+    // Save move
+    await createMove(
+      roomId,
+      moveData.currentYak,
+      moveData.rowIndex,
+      moveData.columnIndex
+    );
+
     let winCondition = checkWinCondition(
       moveData.grid,
       moveData.rowIndex,
@@ -81,7 +93,10 @@ io.on("connect", (socket) => {
 
     // Check if someone won
     if (winCondition.isWin) {
-      io.to(gameId).emit("win", {
+      // Update win condition
+      await updateWinCondition(roomId, moveData.currentYak);
+
+      io.to(roomId).emit("win", {
         grid: moveData.grid,
         isDone: true,
         winner: moveData.currentYak,
@@ -97,7 +112,10 @@ io.on("connect", (socket) => {
 
       // Check if there's been a tie
       if (nextMove.isTie) {
-        io.to(gameId).emit("win", {
+        // Update win condition
+        await updateWinCondition(roomId, moveData.currentYak);
+
+        io.to(roomId).emit("win", {
           grid: moveData.grid,
           isDone: true,
           winner: "tie",
@@ -106,13 +124,14 @@ io.on("connect", (socket) => {
       } else {
         // Send off the grid ready for the next move.
         grid = nextMove.grid;
-        io.to(gameId).emit("turn", { grid });
+        io.to(roomId).emit("turn", { grid });
       }
     }
   });
 
-  socket.on("disconnect", () => {
+  socket.on("disconnect", async() => {
     console.log(playerId + " disconnected.");
+
     // If a player disconnects from a lobby, delete the lobby
     let activeLobby = games.find((lobby) => lobby.playerId === playerId);
     if (activeLobby) {
@@ -129,15 +148,17 @@ io.on("connect", (socket) => {
       let gameIndex = games.indexOf(activeGame);
       games.splice(gameIndex, 1);
 
-      io.to(gameId).emit("disconnected", {
+      // Update database
+      await updateWinCondition(roomId, winner);
+      io.to(roomId).emit("disconnected", {
         winner,
       });
     }
   });
 
-  socket.on("playAgain", (gameData) => {
+  socket.on("playAgain", async (gameData) => {
     // Swap the player colours to keep things interesting
-    let prevGame = games.find((game) => game.gameId === gameData.gameId);
+    let prevGame = games.find((game) => game.roomId === gameData.roomId);
     if (prevGame) {
       console.log(prevGame);
       let orange = prevGame.blue;
@@ -148,16 +169,19 @@ io.on("connect", (socket) => {
       games.splice(prevIndex, 1);
 
       // Create a new game
-      gameId = uuidv4().slice(0, 7);
-      io.sockets.sockets.get(orange).join(gameId);
-      io.sockets.sockets.get(blue).join(gameId);
+      roomId = uuidv4().slice(0, 7);
+      io.sockets.sockets.get(orange).join(roomId);
+      io.sockets.sockets.get(blue).join(roomId);
 
-      //Add new game to games array
-      let game = { gameId, blue, orange };
+      // Add the new game to database
+      await createGame(roomId, blue, orange);
+
+      // Add new game to games array
+      let game = { roomId, blue, orange };
       games.push(game);
 
-      io.to(gameId).emit("resetBoard");
-      io.to(gameId).emit("joined", game);
+      io.to(roomId).emit("resetBoard");
+      io.to(roomId).emit("joined", game);
     } else {
       // If the other player left, go back to the menu screen
       socket.emit("resetGame");
