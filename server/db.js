@@ -1,6 +1,4 @@
 import pg from "pg";
-
-//const connectionString = "postgresql://localhost/yak-vs-yak";
 const connectionString = process.env.DATABASE_URL;
 
 let pool = new pg.Pool({ connectionString });
@@ -34,9 +32,9 @@ export async function createMove(roomId, colour, rowIndex, columnIndex) {
         "INSERT INTO moves(game_id, colour, row_index, column_index) VALUES($1, $2, $3, $4) RETURNING id",
       values: [gameId, colour, rowIndex, columnIndex],
     };
-    console.log(query);
-    const res = await client.query(query);
-    console.log(res.rows[0]);
+
+    await client.query(query);
+
     client.release();
   } catch (err) {
     console.log(err);
@@ -49,8 +47,7 @@ export async function updateWinCondition(roomId, winner) {
     const client = await pool.connect();
     const query = `UPDATE games SET is_done = 'true', winner = '${winner}' WHERE room_id = '${roomId}' RETURNING id`;
 
-    const res = await client.query(query);
-    console.log(res.rows[0]);
+    await client.query(query);
 
     client.release();
   } catch (err) {

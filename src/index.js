@@ -11,6 +11,7 @@ class Game extends React.Component {
       socket: null,
       playerId: null,
       roomId: null,
+      mode: null,
       colour: null,
       isActive: false,
       error: null,
@@ -19,7 +20,6 @@ class Game extends React.Component {
 
   componentDidMount() {
     let socket = socketClient();
-    console.log(socket);
     this.setState({ socket });
 
     socket.on("connected", (data) => {
@@ -29,21 +29,24 @@ class Game extends React.Component {
 
     socket.on("created", (data) => {
       let roomId = data.roomId;
-      this.setState({ roomId });
+      let mode = data.mode;
+      this.setState({ roomId, mode });
     });
 
     socket.on("joined", (data) => {
       let colour = data.orange === this.state.playerId ? "orange" : "blue";
       let roomId = data.roomId;
+      let mode = data.mode;
       let isActive = true;
 
-      this.setState({ roomId, colour, isActive });
+      this.setState({ roomId, colour, mode, isActive });
     });
 
     socket.on("resetGame", () => {
       this.setState({
         roomId: null,
         colour: null,
+        mode: null,
         isActive: false,
         error: null,
       });
@@ -71,6 +74,7 @@ class Game extends React.Component {
             roomId={this.state.roomId}
             colour={this.state.colour}
             socket={this.state.socket}
+            mode={this.state.mode}
           />
         </div>
       );

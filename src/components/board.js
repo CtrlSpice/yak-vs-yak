@@ -35,13 +35,28 @@ export default class Board extends React.Component {
 
   componentDidMount() {
     let socket = this.props.socket;
+    let mode = this.props.mode;
 
     socket.on("win", (data) => {
       this.setState(data);
     });
 
+    socket.on("firstMove", () => {
+      let currentYak = this.state.blueIsNext ? "blue" : "orange";
+      // Blue goes first. Let the AI go first if it is blue.
+      if (mode === "onePlayer" && currentYak !== this.props.colour) {
+        console.log("AI makes first move.");
+        this.aiMove();
+      }
+    });
+
     socket.on("turn", (data) => {
       this.setState({ grid: data.grid, blueIsNext: !this.state.blueIsNext });
+      let currentYak = this.state.blueIsNext ? "blue" : "orange";
+
+      if (mode === "onePlayer" && currentYak !== this.props.colour) {
+        this.aiMove();
+      }
     });
 
     socket.on("disconnected", (data) => {
@@ -64,7 +79,7 @@ export default class Board extends React.Component {
         winner: null,
         sequence: null,
         message: null,
-      })
+      });
     });
   }
 
@@ -81,6 +96,32 @@ export default class Board extends React.Component {
       grid[rowIndex][columnIndex] = currentYak;
       socket.emit("move", { grid, rowIndex, columnIndex, currentYak });
     }
+  }
+
+  aiMove() {
+    // The simplest AI. It places a yak on an open square
+    if (this.state.isDone) return;
+    let currentYak = this.state.blueIsNext ? "blue" : "orange";
+    let socket = this.props.socket;
+    let grid = this.state.grid.map((row) => row.slice());
+
+    // TODO: Figure out how to do this with reduce()
+    let openSpaces = [];
+
+    for (let row = 0; row < grid.length; row++) {
+      for (let col = 0; col < grid[row].length; col++) {
+
+        if (grid[row][col] === "open") {
+          openSpaces.push([row, col])
+        }
+      }
+    }
+
+    let [rowIndex, columnIndex] = openSpaces[Math.floor(Math.random() * openSpaces.length)]
+
+    console.log(rowIndex, columnIndex);
+    grid[rowIndex][columnIndex] = currentYak;
+    socket.emit("move", { grid, rowIndex, columnIndex, currentYak });
   }
 
   renderSquare(rowIndex, columnIndex) {
@@ -111,6 +152,7 @@ export default class Board extends React.Component {
     if (this.state.isDone) {
       let socket = this.props.socket;
       let roomId = this.props.roomId;
+      let mode = this.props.mode;
 
       top = <WinLabel winner={this.state.winner} colour={this.props.colour} />;
       bottom = this.state.message || <SadLabel />;
@@ -118,7 +160,7 @@ export default class Board extends React.Component {
         <button
           className="menu-button"
           onClick={() => {
-            socket.emit("playAgain", { roomId });
+            socket.emit("playAgain", { roomId, mode });
           }}
         >
           Another?
@@ -185,7 +227,8 @@ function GameLabel(props) {
   let indefiniteArticle = props.colour === "orange" ? " an " : " a ";
   return (
     <React.Fragment>
-      <p>You are {indefiniteArticle}
+      <p>
+        You are {indefiniteArticle}
         <span className={"subtitle " + props.colour}>{props.colour + " "}</span>
         yak.
       </p>

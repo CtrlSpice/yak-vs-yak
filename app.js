@@ -2,7 +2,7 @@ import { Server } from "socket.io";
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { checkWinCondition, prepareNextMove } from "./server/gamePlay.js";
-import { createGame, createMove, updateWinCondition, disconnect } from "./server/db.js";
+import { createGame, createMove, updateWinCondition } from "./server/db.js";
 
 // App
 const port = process.env.PORT || 4000;
@@ -22,7 +22,6 @@ app.get("/*", function (_req, res) {
 // Socket
 const io = new Server(server);
 
-// Rooms
 const games = [];
 const lobbies = [];
 
@@ -33,18 +32,40 @@ io.on("connect", (socket) => {
 
   socket.emit("connected", { playerId });
 
-  socket.on("create", (playerData) => {
+  socket.on("create", async (playerData) => {
     roomId = uuidv4().slice(0, 7);
+    let mode = playerData.mode;
     let playerId = playerData.playerId;
-    let lobby = { roomId, playerId };
 
-    lobbies.push(lobby);
-    socket.join(roomId);
-    socket.emit("created", lobby);
+    if (mode === "onePlayer") {
+      // Clear any server errors
+      socket.emit("error", null);
+
+      // Randomly assign a colour to the player
+      let orange = Math.floor(Math.random() * 2) === 0 ? "AI" : playerId;
+      let blue = orange === playerId ? "AI" : playerId;
+      let game = { roomId, orange, blue, mode };
+
+      await createGame(roomId, blue, orange);
+
+      games.push(game);
+      socket.join(roomId);
+      socket.emit("joined", game);
+
+      // Force the first move if AI goes first
+      if(blue === "AI"){
+        io.to(roomId).emit("firstMove");
+      }
+    } else {
+      // Two player game - push to lobbies and wait for other person to join
+      let lobby = { roomId, playerId };
+      lobbies.push(lobby);
+      socket.join(roomId);
+      socket.emit("created", { roomId, playerId, mode });
+    }
   });
 
   socket.on("join", async (lobbyData) => {
-    console.log(lobbyData);
     // Find the correct lobby in lobbies
     let lobby = lobbies.find((lobby) => {
       return lobby.roomId === lobbyData.roomId;
@@ -55,7 +76,8 @@ io.on("connect", (socket) => {
       let orange =
         Math.floor(Math.random() * 2) === 0 ? lobby.playerId : playerId;
       let blue = orange === playerId ? lobby.playerId : playerId;
-      let game = { roomId, orange, blue };
+      let mode = "twoPlayer";
+      let game = { roomId, orange, blue, mode };
 
       // Add the game to the database
       await createGame(roomId, blue, orange);
@@ -78,12 +100,16 @@ io.on("connect", (socket) => {
 
   socket.on("move", async (moveData) => {
     // Save move
-    await createMove(
-      roomId,
-      moveData.currentYak,
-      moveData.rowIndex,
-      moveData.columnIndex
-    );
+    try {
+      await createMove(
+        roomId,
+        moveData.currentYak,
+        moveData.rowIndex,
+        moveData.columnIndex
+      );
+    } catch (error) {
+      console.log(error);
+    }
 
     let winCondition = checkWinCondition(
       moveData.grid,
@@ -94,7 +120,11 @@ io.on("connect", (socket) => {
     // Check if someone won
     if (winCondition.isWin) {
       // Update win condition
-      await updateWinCondition(roomId, moveData.currentYak);
+      try {
+        await updateWinCondition(roomId, moveData.currentYak);
+      } catch (error) {
+        console.log(error);
+      }
 
       io.to(roomId).emit("win", {
         grid: moveData.grid,
@@ -113,7 +143,11 @@ io.on("connect", (socket) => {
       // Check if there's been a tie
       if (nextMove.isTie) {
         // Update win condition
-        await updateWinCondition(roomId, moveData.currentYak);
+        try {
+          await updateWinCondition(roomId, "tie");
+        } catch (error) {
+          console.log(error);
+        }
 
         io.to(roomId).emit("win", {
           grid: moveData.grid,
@@ -122,18 +156,17 @@ io.on("connect", (socket) => {
           sequence: null,
         });
       } else {
-        // Send off the grid ready for the next move.
         grid = nextMove.grid;
         io.to(roomId).emit("turn", { grid });
       }
     }
   });
 
-  socket.on("disconnect", async() => {
+  socket.on("disconnect", async () => {
     console.log(playerId + " disconnected.");
 
     // If a player disconnects from a lobby, delete the lobby
-    let activeLobby = games.find((lobby) => lobby.playerId === playerId);
+    let activeLobby = lobbies.find((lobby) => lobby.playerId === playerId);
     if (activeLobby) {
       let lobbyIndex = lobbies.indexOf(activeLobby);
       lobbies.splice(lobbyIndex, 1);
@@ -160,9 +193,9 @@ io.on("connect", (socket) => {
     // Swap the player colours to keep things interesting
     let prevGame = games.find((game) => game.roomId === gameData.roomId);
     if (prevGame) {
-      console.log(prevGame);
       let orange = prevGame.blue;
       let blue = prevGame.orange;
+      let mode = gameData.mode;
 
       // Remove the previous game from games
       let prevIndex = games.indexOf(prevGame);
@@ -170,18 +203,22 @@ io.on("connect", (socket) => {
 
       // Create a new game
       roomId = uuidv4().slice(0, 7);
-      io.sockets.sockets.get(orange).join(roomId);
-      io.sockets.sockets.get(blue).join(roomId);
+      if (orange !== "AI") io.sockets.sockets.get(orange).join(roomId);
+      if (blue !== "AI") io.sockets.sockets.get(blue).join(roomId);
 
       // Add the new game to database
       await createGame(roomId, blue, orange);
 
       // Add new game to games array
-      let game = { roomId, blue, orange };
+      let game = { roomId, blue, orange, mode };
       games.push(game);
 
       io.to(roomId).emit("resetBoard");
       io.to(roomId).emit("joined", game);
+      // Force the first move if AI goes first
+      if(blue === "AI"){
+        io.to(roomId).emit("firstMove");
+      }
     } else {
       // If the other player left, go back to the menu screen
       socket.emit("resetGame");

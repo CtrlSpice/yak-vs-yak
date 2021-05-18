@@ -51,7 +51,6 @@ export function prepareNextMove(gameGrid, rowIndex, columnIndex) {
   if (isTie) {
     return { isTie };
   }
-
   return { grid };
 }
 

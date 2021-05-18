@@ -9,7 +9,13 @@ export default function StartMenu(props) {
 
   return (
     <div className="menu">
-      <NewGameSection socket={socket} playerId={playerId} roomId={roomId} />
+      <OnePlayerSection socket={socket} playerId={playerId} />
+      <p>-or-</p>
+      <TwoPlayerSection
+        socket={socket}
+        playerId={playerId}
+        roomId={roomId}
+      />
       <p>-or-</p>
       <JoinGameForm
         socket={socket}
@@ -21,84 +27,44 @@ export default function StartMenu(props) {
   );
 }
 
-function JoinGameForm(props) {
-  const serverError = props.error !== null && props.error.on === "join" ? props.error.message : null;
-
-  const socket = props.socket;
-  const formik = useFormik({
-    initialValues: {
-      roomId: "",
-    },
-    validateOnChange: false,
-    validateOnBlur: false,
-    validate: (val) => {
-      let errors = {};
-
-      if (!val.roomId) {
-        errors.roomId = "Game id is required to join a game.";
-      } else if (!/\b[a-zA-Z0-9]{7}\b/i.test(val.roomId)) {
-        errors.roomId =
-          "Invalid format. Please check your game id and try again.";
-      } else if (val.roomId === props.roomId) {
-        errors.roomId =
-          "Your game will start once your opponent joins.";
-      } 
-      return errors;
-    },
-
-    onSubmit: (val) => {
-      let roomId = val.roomId;
-      socket.emit("join", { roomId });
-    },
-  });
+function OnePlayerSection(props) {
+  let playerId = props.playerId;
+  let socket = props.socket;
+  let mode = "onePlayer";
 
   return (
-    <React.Fragment>
-      <p>Enter a game id to join an existing game:</p>
-      <form onSubmit={formik.handleSubmit}>
-        <input
-          id="game-id-input"
-          name="roomId"
-          type="text"
-          className="menu-input"
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          value={formik.values.roomId}
-        />
-        <button className="menu-button" type="submit">
-          Join
-        </button>
-        {formik.errors.roomId ? (
-          <div className="error">{formik.errors.roomId}</div>
-        ) : (
-          <div className="error">{serverError}</div>
-        )}
-      </form>
-    </React.Fragment>
+    <button
+      id="create-button"
+      className="menu-button"
+      onClick={() => socket.emit("create", { playerId, mode })}
+    >
+      One-Yak Game
+    </button>
   );
 }
 
-function NewGameSection(props) {
+function TwoPlayerSection(props) {
   let playerId = props.playerId;
   let roomId = props.roomId;
   let socket = props.socket;
+  let mode = "twoPlayer";
 
   if (roomId === null) {
     return (
       <button
         id="create-button"
         className="menu-button"
-        onClick={() => socket.emit("create", { playerId })}
+        onClick={() => socket.emit("create", { playerId, mode })}
       >
-        New Game
+        Two-Yak Game
       </button>
     );
   } else {
-    return <NewGameInfo roomId={roomId} />;
+    return <TwoPlayerInfo roomId={roomId} />;
   }
 }
 
-class NewGameInfo extends React.Component {
+class TwoPlayerInfo extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -134,4 +100,63 @@ class NewGameInfo extends React.Component {
       </div>
     );
   }
+}
+
+function JoinGameForm(props) {
+  const serverError =
+    props.error !== null && props.error.on === "join"
+      ? props.error.message
+      : null;
+
+  const socket = props.socket;
+  const formik = useFormik({
+    initialValues: {
+      roomId: "",
+    },
+    validateOnChange: false,
+    validateOnBlur: false,
+    validate: (val) => {
+      let errors = {};
+
+      if (!val.roomId) {
+        errors.roomId = "Game id is required to join a game.";
+      } else if (!/\b[a-zA-Z0-9]{7}\b/i.test(val.roomId)) {
+        errors.roomId =
+          "Invalid format. Please check your game id and try again.";
+      } else if (val.roomId === props.roomId) {
+        errors.roomId = "Your game will start once your opponent joins.";
+      }
+      return errors;
+    },
+
+    onSubmit: (val) => {
+      let roomId = val.roomId;
+      socket.emit("join", { roomId });
+    },
+  });
+
+  return (
+    <React.Fragment>
+      <p>Enter a game id to join an existing game:</p>
+      <form onSubmit={formik.handleSubmit}>
+        <input
+          id="game-id-input"
+          name="roomId"
+          type="text"
+          className="menu-input"
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          value={formik.values.roomId}
+        />
+        <button className="menu-button" type="submit">
+          Join
+        </button>
+        {formik.errors.roomId ? (
+          <div className="error">{formik.errors.roomId}</div>
+        ) : (
+          <div className="error">{serverError}</div>
+        )}
+      </form>
+    </React.Fragment>
+  );
 }
