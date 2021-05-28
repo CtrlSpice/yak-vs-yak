@@ -1,7 +1,6 @@
 import pg from "pg";
-//const connectionString = process.env.DATABASE_URL;
-const connectionString = "https://localhost/yak-vs-yak";
-
+const connectionString = process.env.DATABASE_URL;
+//const connectionString = "https://localhost/yak-vs-yak";
 let pool = new pg.Pool({ connectionString });
 
 // Create game
