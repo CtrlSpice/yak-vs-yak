@@ -13,6 +13,7 @@ class Game extends React.Component {
       roomId: null,
       mode: null,
       colour: null,
+      moveList: [],
       isActive: false,
       error: null,
     };
@@ -34,12 +35,19 @@ class Game extends React.Component {
     });
 
     socket.on("joined", (data) => {
-      let colour = data.orange === this.state.playerId ? "orange" : "blue";
-      let roomId = data.roomId;
       let mode = data.mode;
+      let roomId = data.roomId;
       let isActive = true;
 
+      let colour;
+      if (mode === "demo") {
+        colour = "observer";
+      } else {
+        colour = data.orange === this.state.playerId ? "orange" : "blue";
+      }
+
       this.setState({ roomId, colour, mode, isActive });
+      socket.emit("updateRoomId", roomId);
     });
 
     socket.on("resetGame", () => {
@@ -47,6 +55,7 @@ class Game extends React.Component {
         roomId: null,
         colour: null,
         mode: null,
+        moveList: [],
         isActive: false,
         error: null,
       });
@@ -74,6 +83,7 @@ class Game extends React.Component {
             roomId={this.state.roomId}
             colour={this.state.colour}
             socket={this.state.socket}
+            moveList={this.state.moveList}
             mode={this.state.mode}
           />
         </div>

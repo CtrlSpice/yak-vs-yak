@@ -2,7 +2,12 @@ import { Server } from "socket.io";
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
 import { checkWinCondition, prepareNextMove } from "./server/gamePlay.js";
-import { createGame, createMove, updateWinCondition } from "./server/db.js";
+import {
+  createGame,
+  createMove,
+  updateWinCondition,
+  getMoveList,
+} from "./server/db.js";
 
 // App
 const port = process.env.PORT || 4000;
@@ -37,31 +42,53 @@ io.on("connect", (socket) => {
     let mode = playerData.mode;
     let playerId = playerData.playerId;
 
-    if (mode === "onePlayer") {
-      // Clear any server errors
-      socket.emit("error", null);
+    // Clear any server errors
+    socket.emit("error", null);
 
-      // Randomly assign a colour to the player
-      let orange = Math.floor(Math.random() * 2) === 0 ? "AI" : playerId;
-      let blue = orange === playerId ? "AI" : playerId;
-      let game = { roomId, orange, blue, mode };
+    switch (mode) {
+      case "onePlayer":
+        // Randomly assign a colour to the player
+        let orange = Math.floor(Math.random() * 2) === 0 ? "AI" : playerId;
+        let blue = orange === playerId ? "AI" : playerId;
+        let game = { roomId, orange, blue, mode };
 
-      await createGame(roomId, blue, orange);
+        await createGame(roomId, blue, orange);
 
-      games.push(game);
-      socket.join(roomId);
-      socket.emit("joined", game);
+        games.push(game);
+        socket.join(roomId);
+        socket.emit("joined", game);
 
-      // Force the first move if AI goes first
-      if(blue === "AI"){
-        io.to(roomId).emit("firstMove");
-      }
-    } else {
-      // Two player game - push to lobbies and wait for other person to join
-      let lobby = { roomId, playerId };
-      lobbies.push(lobby);
-      socket.join(roomId);
-      socket.emit("created", { roomId, playerId, mode });
+        // Force the first move if AI goes first
+        if (blue === "AI") {
+          io.to(roomId).emit("firstMove");
+        }
+        break;
+
+      case "twoPlayer":
+        // Two player game - push to lobbies and wait for other person to join
+        let lobby = { roomId, playerId };
+        lobbies.push(lobby);
+        socket.join(roomId);
+        socket.emit("created", { roomId, playerId, mode });
+        break;
+
+      case "demo":
+        let demo = { roomId, orange: "AI", blue: "AI", mode };
+        games.push(demo);
+        socket.join(roomId);
+        socket.emit("joined", demo);
+
+        try {
+          let moves = await getMoveList("demo");
+          socket.emit("replaying", moves);
+        } catch (error) {
+          console.log(error);
+        }
+        break;
+      default:
+        console.log(`Trying to create a game using unsupported mode ${mode}. 
+        Supported modes are onePlayer, twoPlayer, and demo.`);
+        break;
     }
   });
 
@@ -98,17 +125,23 @@ io.on("connect", (socket) => {
     }
   });
 
+  socket.on("updateRoomId", (newRoomId) => {
+    roomId = newRoomId;
+  });
+
   socket.on("move", async (moveData) => {
-    // Save move
-    try {
-      await createMove(
-        roomId,
-        moveData.currentYak,
-        moveData.rowIndex,
-        moveData.columnIndex
-      );
-    } catch (error) {
-      console.log(error);
+    if (!moveData.isReplay) {
+      try {
+        await createMove(
+          roomId,
+          moveData.currentYak,
+          moveData.rowIndex,
+          moveData.columnIndex,
+          moveData.turnCount
+        );
+      } catch (error) {
+        console.log(error);
+      }
     }
 
     let winCondition = checkWinCondition(
@@ -213,10 +246,10 @@ io.on("connect", (socket) => {
       let game = { roomId, blue, orange, mode };
       games.push(game);
 
-      io.to(roomId).emit("resetBoard");
+      io.to(roomId).emit("resetBoard", roomId);
       io.to(roomId).emit("joined", game);
       // Force the first move if AI goes first
-      if(blue === "AI"){
+      if (blue === "AI") {
         io.to(roomId).emit("firstMove");
       }
     } else {
@@ -224,4 +257,6 @@ io.on("connect", (socket) => {
       socket.emit("resetGame");
     }
   });
+
+  socket.on("exit", () => socket.emit("resetGame"));
 });

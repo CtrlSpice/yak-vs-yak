@@ -30,6 +30,8 @@ export default class Board extends React.Component {
       winner: null,
       sequence: null,
       message: null,
+      moveList: [],
+      turnCount: 0,
     };
   }
 
@@ -45,13 +47,16 @@ export default class Board extends React.Component {
       let currentYak = this.state.blueIsNext ? "blue" : "orange";
       // Blue goes first. Let the AI go first if it is blue.
       if (mode === "onePlayer" && currentYak !== this.props.colour) {
-        console.log("AI makes first move.");
         this.aiMove();
       }
     });
 
     socket.on("turn", (data) => {
-      this.setState({ grid: data.grid, blueIsNext: !this.state.blueIsNext });
+      this.setState({
+        grid: data.grid,
+        blueIsNext: !this.state.blueIsNext,
+        turnCount: this.state.turnCount + 1,
+      });
       let currentYak = this.state.blueIsNext ? "blue" : "orange";
 
       if (mode === "onePlayer" && currentYak !== this.props.colour) {
@@ -70,6 +75,12 @@ export default class Board extends React.Component {
       }
     });
 
+    socket.on("replaying", (data) => {
+      let moveList = data;
+      this.setState({ moveList });
+      this.interval = setInterval(() => this.replayTurn(), 1000);
+    });
+
     socket.on("resetBoard", () => {
       let grid = cleanGrid();
       this.setState({
@@ -79,12 +90,20 @@ export default class Board extends React.Component {
         winner: null,
         sequence: null,
         message: null,
+        moveList: [],
+        turnCount: 0,
       });
     });
   }
 
+  componentWillUnmount() {
+    clearInterval(this.interval);
+  }
+
   handleClick(rowIndex, columnIndex) {
     let currentYak = this.state.blueIsNext ? "blue" : "orange";
+    let turnCount = this.state.turnCount;
+
     if (this.state.isDone || currentYak !== this.props.colour) return;
 
     let socket = this.props.socket;
@@ -94,34 +113,69 @@ export default class Board extends React.Component {
     if (grid[rowIndex][columnIndex] === "open") {
       // Unleash the yak.
       grid[rowIndex][columnIndex] = currentYak;
-      socket.emit("move", { grid, rowIndex, columnIndex, currentYak });
+      socket.emit("move", { grid, rowIndex, columnIndex, currentYak, turnCount });
     }
   }
 
   aiMove() {
     // The simplest AI. It places a yak on an open square
     if (this.state.isDone) return;
+
     let currentYak = this.state.blueIsNext ? "blue" : "orange";
     let socket = this.props.socket;
     let grid = this.state.grid.map((row) => row.slice());
+    let turnCount = this.state.turnCount;
 
     // TODO: Figure out how to do this with reduce()
     let openSpaces = [];
 
     for (let row = 0; row < grid.length; row++) {
-      for (let col = 0; col < grid[row].length; col++) {
-
-        if (grid[row][col] === "open") {
-          openSpaces.push([row, col])
-        }
-      }
+      for (let col = 0; col < grid[row].length; col++) {
+        if (grid[row][col] === "open") {
+          openSpaces.push([row, col]);
+        }
+      }
     }
 
-    let [rowIndex, columnIndex] = openSpaces[Math.floor(Math.random() * openSpaces.length)]
-
-    console.log(rowIndex, columnIndex);
+    let [rowIndex, columnIndex] =
+      openSpaces[Math.floor(Math.random() * openSpaces.length)];
     grid[rowIndex][columnIndex] = currentYak;
-    socket.emit("move", { grid, rowIndex, columnIndex, currentYak });
+    socket.emit("move", { grid, rowIndex, columnIndex, currentYak, turnCount });
+  }
+
+  replayTurn() {
+    let moves = this.state.moveList;
+    let turnCount = this.state.turnCount;
+    let socket = this.props.socket;
+
+    if (turnCount < moves.length) {
+      let currentYak = moves[turnCount].colour;
+      let rowIndex = moves[turnCount].row_index;
+      let columnIndex = moves[turnCount].column_index;
+      let grid = this.state.grid.map((row) => row.slice());
+
+      if (grid[rowIndex][columnIndex] === "open") {
+        grid[rowIndex][columnIndex] = currentYak;
+        console.log(rowIndex, columnIndex);
+        socket.emit("move", {
+          grid,
+          rowIndex,
+          columnIndex,
+          currentYak,
+          turnCount,
+          isReplay: true,
+        });
+      }
+    } else {
+      clearInterval(this.interval);
+
+      if (this.state.winner === null) {
+        this.setState({
+          message: "Someone saw something shiny and wondered off.",
+        });
+      }
+      this.setState({ isDone: true });
+    }
   }
 
   renderSquare(rowIndex, columnIndex) {
@@ -147,7 +201,7 @@ export default class Board extends React.Component {
     let currentPlayer = this.state.blueIsNext ? "blue" : "orange";
     let top = "";
     let bottom = "";
-    let playAgain = null;
+    let bottomButton = null;
 
     if (this.state.isDone) {
       let socket = this.props.socket;
@@ -156,22 +210,32 @@ export default class Board extends React.Component {
 
       top = <WinLabel winner={this.state.winner} colour={this.props.colour} />;
       bottom = this.state.message || <SadLabel />;
-      playAgain = (
-        <button
-          className="menu-button"
-          onClick={() => {
-            socket.emit("playAgain", { roomId, mode });
-          }}
-        >
-          Another?
-        </button>
-      );
+      bottomButton =
+        mode === "demo" ? (
+          <button
+            className="menu-button"
+            onClick={() => {
+              socket.emit("exit", { roomId });
+            }}
+          >
+            Exit
+          </button>
+        ) : (
+          <button
+            className="menu-button"
+            onClick={() => {
+              socket.emit("playAgain", { roomId, mode });
+            }}
+          >
+            Another?
+          </button>
+        );
     } else {
       top = <GameLabel colour={this.props.colour} />;
       bottom = (
         <TurnLabel currentPlayer={currentPlayer} colour={this.props.colour} />
       );
-      playAgain = null;
+      bottomButton = null;
     }
 
     let grid = this.state.grid.map((row) => row.slice());
@@ -188,7 +252,7 @@ export default class Board extends React.Component {
         <div className="status">{top}</div>
         <div className="game-board">{gameBoard}</div>
         <div className="status">{bottom}</div>
-        <div className="status">{playAgain}</div>
+        <div className="status">{bottomButton}</div>
       </div>
     );
   }
@@ -224,7 +288,7 @@ function TurnLabel(props) {
 }
 
 function GameLabel(props) {
-  let indefiniteArticle = props.colour === "orange" ? " an " : " a ";
+  let indefiniteArticle = props.colour === "blue" ? " a " : " an ";
   return (
     <React.Fragment>
       <p>
@@ -279,6 +343,7 @@ function WinLabel(props) {
         break;
 
       default:
+        winner = " Nobody ";
         break;
     }
     label = (

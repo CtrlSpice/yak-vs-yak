@@ -52,6 +52,14 @@ p {
   margin: 0rem 2.5rem
 }
 
+.game {
+  margin: 2rem;
+}
+
+.instructions {
+  padding: 2rem;
+}
+
 .game-board {
   background: #c7cfb7;
   border: 1px solid #557174;

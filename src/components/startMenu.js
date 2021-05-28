@@ -9,13 +9,11 @@ export default function StartMenu(props) {
 
   return (
     <div className="menu">
+      <DemoSection socket={socket}/>
+      <p>-or-</p>
       <OnePlayerSection socket={socket} playerId={playerId} />
       <p>-or-</p>
-      <TwoPlayerSection
-        socket={socket}
-        playerId={playerId}
-        roomId={roomId}
-      />
+      <TwoPlayerSection socket={socket} playerId={playerId} roomId={roomId} />
       <p>-or-</p>
       <JoinGameForm
         socket={socket}
@@ -27,6 +25,32 @@ export default function StartMenu(props) {
   );
 }
 
+function DemoSection(props) {
+  let playerId = props.playerId;
+  let socket = props.socket;
+  let mode = "demo";
+
+  return (
+    <React.Fragment>
+      <h2>How To Play</h2>
+      <p className="instructions">
+        Like connect-four, yaks want to stick together. Unlike connect-four,
+        yaks herd together on either side of the board instead of stacking
+        bottom-up. Unlike connect-four, you must click on a delicious patch of
+        grass to place a yack on it. Like connect-four, you win by placing four+
+        yaks in your colour on a diagonal, column, or row.
+      </p>
+      <button
+        id="demo-button"
+        className="menu-button"
+        onClick={() => socket.emit("create", { playerId, mode })}
+      >
+        Watch a Demo
+      </button>
+    </React.Fragment>
+  );
+}
+
 function OnePlayerSection(props) {
   let playerId = props.playerId;
   let socket = props.socket;
@@ -34,7 +58,7 @@ function OnePlayerSection(props) {
 
   return (
     <button
-      id="create-button"
+      id="one-player-button"
       className="menu-button"
       onClick={() => socket.emit("create", { playerId, mode })}
     >
@@ -52,7 +76,7 @@ function TwoPlayerSection(props) {
   if (roomId === null) {
     return (
       <button
-        id="create-button"
+        id="two-player-button"
         className="menu-button"
         onClick={() => socket.emit("create", { playerId, mode })}
       >
